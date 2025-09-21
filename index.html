@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotarizz - Aplikasi Cek Kesehatan berbasis AI</title>
+    <!-- Tailwind CSS CDN untuk styling responsif -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'mint-green': '#D1FAE5',
+                        'light-blue': '#BFDBFE',
+                        'primary-green': '#34D399',
+                        'primary-blue': '#60A5FA',
+                        'soft-white': '#F9FAFB',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                },
+            },
+        };
+    </script>
+    <!-- Google Fonts untuk font Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons untuk ikon yang jelas -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js untuk grafik data -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F3F4F6;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* Styling untuk tombol navigasi */
+        .nav-button.active .nav-icon {
+            color: #10B981; /* Primary Green */
+        }
+        .nav-button.active .nav-text {
+            color: #10B981;
+            font-weight: 600;
+        }
+
+        /* Animasi fade in */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Ukuran font responsif */
+        .text-huge {
+            font-size: 2.5rem; /* Default for mobile */
+        }
+        @media (min-width: 768px) {
+            .text-huge {
+                font-size: 4rem; /* Larger for desktop */
+            }
+        }
+
+        /* Animasi gelombang pada tombol */
+        .btn-wave {
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+        .btn-wave::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 5px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.4);
+            opacity: 0;
+            border-radius: 100%;
+            transform: scale(1, 1) translate(-50%);
+            transform-origin: 50% 50%;
+        }
+        .btn-wave:hover::after {
+            animation: wave 0.8s ease-out;
+        }
+        @keyframes wave {
+            to {
+                transform: scale(200, 200) translate(-50%);
+                opacity: 0;
+            }
+        }
+
+        /* Responsif untuk card pada desktop */
+        @media (min-width: 1024px) {
+            .desktop-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        /* Tombol floating */
+        .floating-button {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 40;
+            bottom: 80px; /* Tinggi nav bar + margin */
+        }
+        @media (min-width: 768px) {
+            .floating-button {
+                position: static;
+                transform: none;
+            }
+        }
+
+        /* Tinggi grafik yang proporsional dan responsif */
+        .chart-container-mobile {
+            height: 170px;
+        }
+        @media (min-width: 768px) {
+            .chart-container-desktop {
+                height: 280px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-soft-white md:bg-gray-100 flex flex-col md:flex-row h-screen">
+
+<!-- Sidebar Navigasi untuk Desktop/Tablet -->
+<aside class="hidden md:flex flex-col w-64 bg-white p-6 shadow-md rounded-lg m-4">
+    <div class="flex items-center space-x-2 mb-8">
+        <div class="h-10 w-10 bg-primary-green rounded-full flex items-center justify-center">
+            <i data-lucide="heart-pulse" class="text-white"></i>
+        </div>
+        <span class="font-bold text-2xl text-gray-800">Rotarizz</span>
+    </div>
+    <nav class="flex-grow">
+        <ul class="space-y-2">
+            <li>
+                <button onclick="showPage('home')" class="nav-button active w-full flex items-center p-4 rounded-lg hover:bg-light-blue transition-colors duration-200 space-x-4">
+                    <i data-lucide="home" class="nav-icon text-gray-500"></i>
+                    <span class="nav-text text-gray-700 text-lg">Beranda</span>
+                </button>
+            </li>
+            <li>
+                <button onclick="showPage('scan')" class="nav-button w-full flex items-center p-4 rounded-lg hover:bg-light-blue transition-colors duration-200 space-x-4">
+                    <i data-lucide="scan" class="nav-icon text-gray-500"></i>
+                    <span class="nav-text text-gray-700 text-lg">AI Scan</span>
+                </button>
+            </li>
+            <li>
+                <button onclick="showPage('reminder')" class="nav-button w-full flex items-center p-4 rounded-lg hover:bg-light-blue transition-colors duration-200 space-x-4">
+                    <i data-lucide="pill" class="nav-icon text-gray-500"></i>
+                    <span class="nav-text text-gray-700 text-lg">Pengingat</span>
+                </button>
+            </li>
+            <li>
+                <button onclick="showPage('history')" class="nav-button w-full flex items-center p-4 rounded-lg hover:bg-light-blue transition-colors duration-200 space-x-4">
+                    <i data-lucide="line-chart" class="nav-icon text-gray-500"></i>
+                    <span class="nav-text text-gray-700 text-lg">Riwayat</span>
+                </button>
+            </li>
+            <li>
+                <button onclick="showPage('profile')" class="nav-button w-full flex items-center p-4 rounded-lg hover:bg-light-blue transition-colors duration-200 space-x-4">
+                    <i data-lucide="user" class="nav-icon text-gray-500"></i>
+                    <span class="nav-text text-gray-700 text-lg">Profil</span>
+                </button>
+            </li>
+        </ul>
+    </nav>
+</aside>
+
+<!-- Konten Utama Aplikasi -->
+<!-- Menambahkan padding-bottom yang lebih besar agar konten tidak tertutup oleh navigasi bawah pada mobile -->
+<main class="flex-1 flex flex-col p-4 md:p-8 pb-28 overflow-y-auto">
+    <!-- Halaman Home Dashboard -->
+    <section id="home-page" class="page active fade-in">
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-6 md:p-8">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Selamat datang, Pengguna!</h1>
+            <p class="text-gray-500 text-lg md:text-xl mb-4">Ringkasan kesehatan Anda hari ini.</p>
+            
+            <!-- Indikator Kesehatan (Mobile vs Desktop) -->
+            <div id="health-status" class="p-4 rounded-xl bg-mint-green text-green-700 flex items-center space-x-4">
+                <i data-lucide="heart-pulse" class="w-8 h-8 md:w-10 md:h-10 text-primary-green"></i>
+                <div>
+                    <span class="font-bold text-2xl md:text-3xl">Baik</span>
+                    <p class="text-sm md:text-base text-gray-600">Kondisi kesehatan Anda prima hari ini.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:desktop-grid gap-6 mb-6">
+            <!-- Jadwal Obat/Vitamin -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl md:text-2xl font-semibold text-gray-800">Jadwal Obat & Vitamin</h2>
+                    <!-- Tombol untuk menambahkan pengingat baru -->
+                    <button onclick="showPage('add-reminder')" class="text-gray-400 hover:text-primary-green transition-colors duration-200">
+                        <i data-lucide="calendar-plus" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                <ul class="space-y-4">
+                    <li class="flex items-center space-x-4 p-3 bg-soft-white rounded-lg">
+                        <i data-lucide="pill" class="text-light-blue w-6 h-6"></i>
+                        <div>
+                            <p class="font-medium text-lg text-gray-800">Vitamin C</p>
+                            <span class="text-sm text-gray-500">08:00 WIB</span>
+                        </div>
+                    </li>
+                    <li class="flex items-center space-x-4 p-3 bg-soft-white rounded-lg">
+                        <i data-lucide="pill" class="text-light-blue w-6 h-6"></i>
+                        <div>
+                            <p class="font-medium text-lg text-gray-800">Obat Sakit Kepala</p>
+                            <span class="text-sm text-gray-500">12:30 WIB</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Grafik Kesehatan Mingguan (Diagram Batang) -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <h2 class="text-xl md:text-2xl font-semibold text-gray-800 mb-4">Kondisi Kesehatan Minggu Ini</h2>
+                <div class="chart-container-mobile chart-container-desktop">
+                    <canvas id="weekly-chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tombol Utama untuk AI Scan -->
+        <div class="flex justify-center">
+            <button onclick="showPage('scan')" class="btn-wave w-full md:w-auto px-8 py-6 bg-primary-green text-white font-bold text-xl md:text-2xl rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                <div class="flex items-center justify-center space-x-2">
+                    <i data-lucide="scan" class="w-8 h-8"></i>
+                    <span>Mulai AI Scan Kesehatan</span>
+                </div>
+            </button>
+        </div>
+    </section>
+
+    <!-- Halaman AI Scan -->
+    <section id="scan-page" class="page">
+        <div class="flex flex-col items-center justify-center h-full">
+            <h1 class="text-2xl md:text-4xl font-bold text-gray-800 mb-6">AI Scan Kesehatan</h1>
+            
+            <!-- Area Preview Kamera -->
+            <div class="relative w-full max-w-lg md:max-w-2xl aspect-video rounded-3xl overflow-hidden bg-gray-200 flex items-center justify-center mb-6 shadow-xl">
+                <video id="camera-preview" class="w-full h-full object-cover" autoplay></video>
+                <!-- Panduan Wajah/Tangan -->
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <div class="w-3/4 h-3/4 md:w-1/2 md:h-1/2 border-2 border-dashed border-primary-green rounded-full opacity-70"></div>
+                </div>
+                <p class="absolute bottom-4 text-white text-shadow-md">Arahkan wajah Anda ke lingkaran</p>
+            </div>
+            
+            <!-- Tombol Mulai Scan -->
+            <button id="scan-button" class="btn-wave px-8 py-4 bg-primary-green text-white font-bold text-xl rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="zap" class="w-6 h-6"></i>
+                    <span>Mulai Scan</span>
+                </div>
+            </button>
+            
+            <!-- Hasil Scan (Disembunyikan, akan muncul setelah scan selesai) -->
+            <div id="scan-results" class="hidden fade-in mt-8 w-full max-w-lg md:max-w-2xl bg-white rounded-xl shadow-lg p-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                <!-- Data AI Scan dan Smartwatch -->
+                <div id="heart-rate-box" class="p-4 bg-mint-green rounded-xl">
+                    <i data-lucide="heart-pulse" class="text-primary-green w-8 h-8 mx-auto mb-2"></i>
+                    <span class="font-bold text-xl md:text-2xl">80</span>
+                    <p class="text-sm text-gray-500">Detak Jantung</p>
+                </div>
+                <div class="p-4 bg-light-blue rounded-xl">
+                    <i data-lucide="smile" class="text-primary-blue w-8 h-8 mx-auto mb-2"></i>
+                    <span class="font-bold text-xl md:text-2xl">Normal</span>
+                    <p class="text-sm text-gray-500">Mood</p>
+                </div>
+                <div class="p-4 bg-yellow-100 rounded-xl">
+                    <i data-lucide="gauge" class="text-yellow-600 w-8 h-8 mx-auto mb-2"></i>
+                    <span class="font-bold text-xl md:text-2xl">120/80</span>
+                    <p class="text-sm text-gray-500">Tekanan Darah</p>
+                </div>
+                <div class="p-4 bg-purple-100 rounded-xl">
+                    <i data-lucide="activity" class="text-purple-600 w-8 h-8 mx-auto mb-2"></i>
+                    <span class="font-bold text-xl md:text-2xl">Rendah</span>
+                    <p class="text-sm text-gray-500">Tingkat Stres</p>
+                </div>
+                <div id="temperature-box" class="p-4 bg-red-100 rounded-xl">
+                    <i data-lucide="thermometer" class="text-red-600 w-8 h-8 mx-auto mb-2"></i>
+                    <span class="font-bold text-xl md:text-2xl">36.5°C</span>
+                    <p class="text-sm text-gray-500">Suhu Tubuh</p>
+                </div>
+                <div class="p-4 bg-yellow-100 rounded-xl">
+                    <i data-lucide="moon" class="text-yellow-600 w-8 h-8 mx-auto mb-2"></i>
+                    <span class="font-bold text-xl md:text-2xl">Minimal</span>
+                    <p class="text-sm text-gray-500">Tingkat Kelelahan</p>
+                </div>
+            </div>
+            <p class="mt-4 text-center text-sm text-gray-500 italic">Estimasi berdasarkan AI, bukan diagnosis medis</p>
+        </div>
+    </section>
+
+    <!-- Halaman Reminder Obat -->
+    <section id="reminder-page" class="page">
+        <div class="flex flex-col h-full">
+            <h1 class="text-2xl md:text-4xl font-bold text-gray-800 mb-6">Pengingat Obat & Vitamin</h1>
+            
+            <!-- Tombol Tambah Pengingat -->
+            <button onclick="showPage('add-reminder')" class="btn-wave w-full px-8 py-4 bg-primary-green text-white font-bold text-xl rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 mb-6">
+                <div class="flex items-center justify-center space-x-2">
+                    <i data-lucide="plus" class="w-6 h-6"></i>
+                    <span>Tambah Pengingat</span>
+                </div>
+            </button>
+
+            <!-- Daftar Pengingat -->
+            <div class="flex-1 overflow-y-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Kartu Pengingat 1 -->
+                    <div class="bg-white rounded-xl shadow-sm p-6 flex items-center space-x-4">
+                        <div class="bg-light-blue rounded-full p-3 flex-shrink-0">
+                            <i data-lucide="pill" class="text-primary-blue w-8 h-8"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-bold text-lg md:text-xl text-gray-800">Vitamin D</h3>
+                            <p class="text-gray-500">1 tablet, setelah makan</p>
+                            <span class="font-medium text-sm text-gray-600 mt-1 block">Setiap hari | 08:00 WIB</span>
+                        </div>
+                        <i data-lucide="check-circle" class="toggle-icon text-green-500 w-8 h-8 cursor-pointer" onclick="toggleReminderCompletion(this)"></i>
+                    </div>
+                    <!-- Kartu Pengingat 2 -->
+                    <div class="bg-white rounded-xl shadow-sm p-6 flex items-center space-x-4">
+                        <div class="bg-mint-green rounded-full p-3 flex-shrink-0">
+                            <i data-lucide="pill" class="text-primary-green w-8 h-8"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-bold text-lg md:text-xl text-gray-800">Obat Alergi</h3>
+                            <p class="text-gray-500">1/2 tablet, sebelum tidur</p>
+                            <span class="font-medium text-sm text-gray-600 mt-1 block">Setiap hari | 21:00 WIB</span>
+                        </div>
+                        <i data-lucide="circle" class="toggle-icon text-gray-400 w-8 h-8 cursor-pointer" onclick="toggleReminderCompletion(this)"></i>
+                    </div>
+                    <!-- Kartu Pengingat 3 -->
+                    <div class="bg-white rounded-xl shadow-sm p-6 flex items-center space-x-4">
+                        <div class="bg-light-blue rounded-full p-3 flex-shrink-0">
+                            <i data-lucide="pill" class="text-primary-blue w-8 h-8"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-bold text-lg md:text-xl text-gray-800">Suplemen Omega-3</h3>
+                            <p class="text-gray-500">1 kapsul, pagi dan sore</p>
+                            <span class="font-medium text-sm text-gray-600 mt-1 block">Setiap hari | 09:00 WIB & 17:00 WIB</span>
+                        </div>
+                        <i data-lucide="check-circle" class="toggle-icon text-green-500 w-8 h-8 cursor-pointer" onclick="toggleReminderCompletion(this)"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Halaman Form Tambah Pengingat -->
+    <section id="add-reminder-page" class="page">
+        <div class="flex flex-col h-full items-center justify-center">
+            <div class="bg-white rounded-xl shadow-sm p-6 w-full max-w-lg md:p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Tambah Pengingat</h1>
+                    <button onclick="showPage('reminder')" class="text-gray-500 hover:text-gray-700 transition-colors">
+                        <i data-lucide="x" class="w-8 h-8 md:w-10 md:h-10"></i>
+                    </button>
+                </div>
+                
+                <form class="space-y-6">
+                    <!-- Nama Obat/Vitamin -->
+                    <div>
+                        <label for="med-name" class="block text-gray-700 font-medium mb-2 text-lg">Nama Obat/Vitamin</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <i data-lucide="pill" class="text-gray-400 w-6 h-6"></i>
+                            </div>
+                            <input type="text" id="med-name" placeholder="Contoh: Vitamin C" class="w-full p-4 pl-12 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-light-blue transition-all text-base md:text-lg">
+                        </div>
+                    </div>
+                    
+                    <!-- Dosis -->
+                    <div>
+                        <label for="dosage" class="block text-gray-700 font-medium mb-2 text-lg">Dosis</label>
+                        <input type="text" id="dosage" placeholder="Contoh: 1 tablet" class="w-full p-4 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-light-blue transition-all text-base md:text-lg">
+                    </div>
+
+                    <!-- Waktu Minum -->
+                    <div>
+                        <label for="time" class="block text-gray-700 font-medium mb-2 text-lg">Waktu Minum</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <i data-lucide="clock" class="text-gray-400 w-6 h-6"></i>
+                            </div>
+                            <input type="time" id="time" class="w-full p-4 pl-12 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-light-blue transition-all text-base md:text-lg">
+                        </div>
+                    </div>
+                    
+                    <!-- Frekuensi -->
+                    <div>
+                        <label for="frequency" class="block text-gray-700 font-medium mb-2 text-lg">Frekuensi</label>
+                        <select id="frequency" class="w-full p-4 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-light-blue transition-all text-base md:text-lg">
+                            <option value="harian">Setiap Hari</option>
+                            <option value="mingguan">Setiap Minggu</option>
+                            <option value="sesuai-resep">Sesuai Resep</option>
+                        </select>
+                    </div>
+
+                    <!-- Catatan Tambahan -->
+                    <div>
+                        <label for="notes" class="block text-gray-700 font-medium mb-2 text-lg">Catatan Tambahan (Opsional)</label>
+                        <textarea id="notes" rows="3" placeholder="Contoh: Diminum setelah sarapan" class="w-full p-4 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-light-blue transition-all text-base md:text-lg"></textarea>
+                    </div>
+                    
+                    <!-- Tombol Simpan -->
+                    <div class="flex justify-center">
+                        <button type="submit" class="btn-wave w-full py-4 bg-primary-green text-white font-bold text-xl rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                            <div class="flex items-center justify-center space-x-2">
+                                <i data-lucide="save" class="w-6 h-6"></i>
+                                <span>Simpan</span>
+                            </div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Halaman History / Tracking Gejala -->
+    <section id="history-page" class="page">
+        <div class="flex flex-col h-full">
+            <h1 class="text-2xl md:text-4xl font-bold text-gray-800 mb-6">Riwayat & Catatan Gejala</h1>
+            
+            <!-- Tombol Tambah Catatan Gejala -->
+<button onclick="showPage('add-symptom')" class="btn-wave w-full px-8 py-4 bg-primary-green text-white font-bold text-xl rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 mb-6">
+                <div class="flex items-center justify-center space-x-2">
+                    <i data-lucide="plus" class="w-6 h-6"></i>
+                    <span>Tambah Catatan Gejala</span>
+                </div>
+            </button>
+
+            <!-- Grafik Perkembangan Kesehatan (Diagram Batang) -->
+            <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                <h2 class="text-xl md:text-2xl font-semibold text-gray-800 mb-4">Perkembangan 7 Hari Terakhir</h2>
+                <div class="chart-container-mobile chart-container-desktop">
+                    <canvas id="history-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Daftar Gejala yang Dicatat -->
+            <div class="flex-1 overflow-y-auto mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:desktop-grid gap-4">
+                    <!-- Kartu Gejala 1 -->
+                    <div class="bg-white rounded-xl shadow-sm p-4 flex items-center space-x-4">
+                        <div class="bg-red-100 rounded-full p-2 flex-shrink-0">
+                            <i data-lucide="head-drip" class="text-red-500 w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-lg text-gray-800">Sakit Kepala</p>
+                            <span class="text-sm text-gray-500">21 September 2025</span>
+                        </div>
+                    </div>
+                    <!-- Kartu Gejala 2 -->
+                    <div class="bg-white rounded-xl shadow-sm p-4 flex items-center space-x-4">
+                        <div class="bg-yellow-100 rounded-full p-2 flex-shrink-0">
+                            <i data-lucide="cough" class="text-yellow-600 w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-lg text-gray-800">Batuk</p>
+                            <span class="text-sm text-gray-500">19 September 2025</span>
+                        </div>
+                    </div>
+                    <!-- Kartu Gejala 3 -->
+                    <div class="bg-white rounded-xl shadow-sm p-4 flex items-center space-x-4">
+                        <div class="bg-orange-100 rounded-full p-2 flex-shrink-0">
+                            <i data-lucide="thermometer" class="text-orange-500 w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-lg text-gray-800">Demam Ringan</p>
+                            <span class="text-sm text-gray-500">15 September 2025</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Halaman Form Tambah Catatan Gejala -->
+    <section id="add-symptom-page" class="page">
+        <div class="flex flex-col h-full items-center justify-center">
+            <div class="bg-white rounded-xl shadow-sm p-6 w-full max-w-lg md:p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Tambah Catatan Gejala</h1>
+                    <button onclick="showPage('history')" class="text-gray-500 hover:text-gray-700 transition-colors">
+                        <i data-lucide="x" class="w-8 h-8 md:w-10 md:h-10"></i>
+                    </button>
+                </div>
+                
+                <form class="space-y-6">
+                    <!-- Tanggal -->
+                    <div>
+                        <label for="symptom-date" class="block text-gray-700 font-medium mb-2 text-lg">Tanggal</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <i data-lucide="calendar" class="text-gray-400 w-6 h-6"></i>
+                            </div>
+                            <input type="date" id="symptom-date" class="w-full p-4 pl-12 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-light-blue transition-all text-base md:text-lg">
+                        </div>
+                    </div>
+
+                    <!-- Jenis Gejala -->
+                    <div>
+                        <label for="symptom-type" class="block text-gray-700 font-medium mb-2 text-lg">Jenis Gejala</label>
+                        <select id="symptom-type" class="w-full p-4 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-light-blue transition-all text-base md:text-lg">
+                            <option value="">Pilih gejala...</option>
+                            <option value="pusing">Pusing</option>
+                            <option value="batuk">Batuk</option>
+                            <option value="demam">Demam</option>
+                            <option value="sakit-perut">Sakit Perut</option>
+                            <option value="lainnya">Lainnya</option>
+                        </select>
+                    </div>
+
+                    <!-- Tingkat Keparahan -->
+                    <div>
+                        <label for="severity" class="block text-gray-700 font-medium mb-2 text-lg">Tingkat Keparahan</label>
+                        <div class="flex items-center space-x-4">
+                            <span class="text-sm text-gray-500">Ringan</span>
+                            <input type="range" id="severity" min="0" max="100" value="50" class="flex-grow h-2 bg-primary-green rounded-lg appearance-none cursor-pointer">
+                            <span class="text-sm text-gray-500">Berat</span>
+                        </div>
+                    </div>
+
+                    <!-- Catatan Tambahan -->
+                    <div>
+                        <label for="symptom-notes" class="block text-gray-700 font-medium mb-2 text-lg">Catatan Tambahan (Opsional)</label>
+                        <textarea id="symptom-notes" rows="3" placeholder="Contoh: Sakit kepala di pagi hari" class="w-full p-4 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-light-blue transition-all text-base md:text-lg"></textarea>
+                    </div>
+                    
+                    <!-- Tombol Simpan -->
+                    <div class="flex justify-center">
+                        <button type="submit" class="btn-wave w-full py-4 bg-primary-green text-white font-bold text-xl rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                            <div class="flex items-center justify-center space-x-2">
+                                <i data-lucide="save" class="w-6 h-6"></i>
+                                <span>Simpan</span>
+                            </div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Halaman History / Tracking Gejala -->
+    <section id="history-page" class="page">
+        <div class="flex flex-col h-full">
+            <h1 class="text-2xl md:text-4xl font-bold text-gray-800 mb-6">Riwayat & Catatan Gejala</h1>
+            
+            <!-- Tombol Tambah Catatan Gejala -->
+            <div class="flex justify-center mb-6">
+                <button onclick="showPage('add-symptom')" class="btn-wave w-full md:w-auto px-8 py-4 bg-primary-green text-white font-bold text-xl rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                    <div class="flex items-center justify-center space-x-2">
+                        <i data-lucide="plus" class="w-6 h-6"></i>
+                        <span>Tambah Catatan Gejala</span>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Grafik Perkembangan Kesehatan (Diagram Batang) -->
+            <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                <h2 class="text-xl md:text-2xl font-semibold text-gray-800 mb-4">Perkembangan 7 Hari Terakhir</h2>
+                <div class="chart-container-mobile chart-container-desktop">
+                    <canvas id="history-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Daftar Gejala yang Dicatat -->
+            <div class="flex-1 overflow-y-auto mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:desktop-grid gap-4">
+                    <!-- Kartu Gejala 1 -->
+                    <div class="bg-white rounded-xl shadow-sm p-4 flex items-center space-x-4">
+                        <div class="bg-red-100 rounded-full p-2 flex-shrink-0">
+                            <i data-lucide="head-drip" class="text-red-500 w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-lg text-gray-800">Sakit Kepala</p>
+                            <span class="text-sm text-gray-500">21 September 2025</span>
+                        </div>
+                    </div>
+                    <!-- Kartu Gejala 2 -->
+                    <div class="bg-white rounded-xl shadow-sm p-4 flex items-center space-x-4">
+                        <div class="bg-yellow-100 rounded-full p-2 flex-shrink-0">
+                            <i data-lucide="cough" class="text-yellow-600 w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-lg text-gray-800">Batuk</p>
+                            <span class="text-sm text-gray-500">19 September 2025</span>
+                        </div>
+                    </div>
+                    <!-- Kartu Gejala 3 -->
+                    <div class="bg-white rounded-xl shadow-sm p-4 flex items-center space-x-4">
+                        <div class="bg-orange-100 rounded-full p-2 flex-shrink-0">
+                            <i data-lucide="thermometer" class="text-orange-500 w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-lg text-gray-800">Demam Ringan</p>
+                            <span class="text-sm text-gray-500">15 September 2025</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Halaman Form Tambah Catatan Gejala -->
+    <section id="add-symptom-page" class="page">
+        <div class="flex flex-col h-full items-center justify-center">
+            <div class="bg-white rounded-xl shadow-sm p-6 w-full max-w-lg md:p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Tambah Catatan Gejala</h1>
+                    <button onclick="showPage('history')" class="text-gray-500 hover:text-gray-700 transition-colors">
+                        <i data-lucide="x" class="w-8 h-8 md:w-10 md:h-10"></i>
+                    </button>
+                </div>
+                
+                <form class="space-y-6">
+                    <!-- Tanggal -->
+                    <div>
+                        <label for="symptom-date" class="block text-gray-700 font-medium mb-2 text-lg">Tanggal</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <i data-lucide="calendar" class="text-gray-400 w-6 h-6"></i>
+                            </div>
+                            <input type="date" id="symptom-date" class="w-full p-4 pl-12 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-light-blue transition-all text-base md:text-lg">
+                        </div>
+                    </div>
+
+                    <!-- Jenis Gejala -->
+                    <div>
+                        <label for="symptom-type" class="block text-gray-700 font-medium mb-2 text-lg">Jenis Gejala</label>
+                        <select id="symptom-type" class="w-full p-4 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-light-blue transition-all text-base md:text-lg">
+                            <option value="">Pilih gejala...</option>
+                            <option value="pusing">Pusing</option>
+                            <option value="batuk">Batuk</option>
+                            <option value="demam">Demam</option>
+                            <option value="sakit-perut">Sakit Perut</option>
+                            <option value="lainnya">Lainnya</option>
+                        </select>
+                    </div>
+
+                    <!-- Tingkat Keparahan -->
+                    <div>
+                        <label for="severity" class="block text-gray-700 font-medium mb-2 text-lg">Tingkat Keparahan</label>
+                        <div class="flex items-center space-x-4">
+                            <span class="text-sm text-gray-500">Ringan</span>
+                            <input type="range" id="severity" min="0" max="100" value="50" class="flex-grow h-2 bg-primary-green rounded-lg appearance-none cursor-pointer">
+                            <span class="text-sm text-gray-500">Berat</span>
+                        </div>
+                    </div>
+
+                    <!-- Catatan Tambahan -->
+                    <div>
+                        <label for="symptom-notes" class="block text-gray-700 font-medium mb-2 text-lg">Catatan Tambahan (Opsional)</label>
+                        <textarea id="symptom-notes" rows="3" placeholder="Contoh: Sakit kepala di pagi hari" class="w-full p-4 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-light-blue transition-all text-base md:text-lg"></textarea>
+                    </div>
+                    
+                    <!-- Tombol Simpan -->
+                    <div class="flex justify-center">
+                        <button type="submit" class="btn-wave w-full py-4 bg-primary-green text-white font-bold text-xl rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                            <div class="flex items-center justify-center space-x-2">
+                                <i data-lucide="save" class="w-6 h-6"></i>
+                                <span>Simpan</span>
+                            </div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Halaman History / Tracking Gejala -->
+    <section id="history-page" class="page">
+        <div class="flex flex-col h-full">
+            <h1 class="text-2xl md:text-4xl font-bold text-gray-800 mb-6">Riwayat & Catatan Gejala</h1>
+            
+            <!-- Tombol Tambah Catatan Gejala -->
+            <div class="flex justify-center mb-6">
+                <button onclick="showPage('add-symptom')" class="btn-wave w-full md:w-auto px-8 py-4 bg-primary-green text-white font-bold text-xl rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                    <div class="flex items-center justify-center space-x-2">
+                        <i data-lucide="plus" class="w-6 h-6"></i>
+                        <span>Tambah Catatan Gejala</span>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Grafik Perkembangan Kesehatan (Diagram Batang) -->
+            <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                <h2 class="text-xl md:text-2xl font-semibold text-gray-800 mb-4">Perkembangan 7 Hari Terakhir</h2>
+                <div class="chart-container-mobile chart-container-desktop">
+                    <canvas id="history-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Daftar Gejala yang Dicatat -->
+            <div class="flex-1 overflow-y-auto mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:desktop-grid gap-4">
+                    <!-- Kartu Gejala 1 -->
+                    <div class="bg-white rounded-xl shadow-sm p-4 flex items-center space-x-4">
+                        <div class="bg-red-100 rounded-full p-2 flex-shrink-0">
+                            <i data-lucide="head-drip" class="text-red-500 w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-lg text-gray-800">Sakit Kepala</p>
+                            <span class="text-sm text-gray-500">21 September 2025</span>
+                        </div>
+                    </div>
+                    <!-- Kartu Gejala 2 -->
+                    <div class="bg-white rounded-xl shadow-sm p-4 flex items-center space-x-4">
+                        <div class="bg-yellow-100 rounded-full p-2 flex-shrink-0">
+                            <i data-lucide="cough" class="text-yellow-600 w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-lg text-gray-800">Batuk</p>
+                            <span class="text-sm text-gray-500">19 September 2025</span>
+                        </div>
+                    </div>
+                    <!-- Kartu Gejala 3 -->
+                    <div class="bg-white rounded-xl shadow-sm p-4 flex items-center space-x-4">
+                        <div class="bg-orange-100 rounded-full p-2 flex-shrink-0">
+                            <i data-lucide="thermometer" class="text-orange-500 w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-lg text-gray-800">Demam Ringan</p>
+                            <span class="text-sm text-gray-500">15 September 2025</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Halaman Form Tambah Catatan Gejala -->
+    <section id="add-symptom-page" class="page">
+        <div class="flex flex-col h-full items-center justify-center">
+            <div class="bg-white rounded-xl shadow-sm p-6 w-full max-w-lg md:p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Tambah Catatan Gejala</h1>
+                    <button onclick="showPage('history')" class="text-gray-500 hover:text-gray-700 transition-colors">
+                        <i data-lucide="x" class="w-8 h-8 md:w-10 md:h-10"></i>
+                    </button>
+                </div>
+                
+                <form class="space-y-6">
+                    <!-- Tanggal -->
+                    <div>
+                        <label for="symptom-date" class="block text-gray-700 font-medium mb-2 text-lg">Tanggal</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <i data-lucide="calendar" class="text-gray-400 w-6 h-6"></i>
+                            </div>
+                            <input type="date" id="symptom-date" class="w-full p-4 pl-12 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-light-blue transition-all text-base md:text-lg">
+                        </div>
+                    </div>
+
+                    <!-- Jenis Gejala -->
+                    <div>
+                        <label for="symptom-type" class="block text-gray-700 font-medium mb-2 text-lg">Jenis Gejala</label>
+                        <select id="symptom-type" class="w-full p-4 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-light-blue transition-all text-base md:text-lg">
+                            <option value="">Pilih gejala...</option>
+                            <option value="pusing">Pusing</option>
+                            <option value="batuk">Batuk</option>
+                            <option value="demam">Demam</option>
+                            <option value="sakit-perut">Sakit Perut</option>
+                        </select>
+                    </div>
+
+                    <!-- Tingkat Keparahan -->
+                    <div>
+                        <label for="severity" class="block text-gray-700 font-medium mb-2 text-lg">Tingkat Keparahan</label>
+                        <div class="flex items-center space-x-4">
+                            <span class="text-sm text-gray-500">Ringan</span>
+                            <input type="range" id="severity" min="0" max="100" value="50" class="flex-grow h-2 bg-primary-green rounded-lg appearance-none cursor-pointer">
+                            <span class="text-sm text-gray-500">Berat</span>
+                        </div>
+                    </div>
+
+                    <!-- Catatan Tambahan -->
+                    <div>
+                        <label for="symptom-notes" class="block text-gray-700 font-medium mb-2 text-lg">Catatan Tambahan (Opsional)</label>
+                        <textarea id="symptom-notes" rows="3" placeholder="Contoh: Sakit kepala di pagi hari" class="w-full p-4 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-light-blue transition-all text-base md:text-lg"></textarea>
+                    </div>
+                    
+                    <!-- Tombol Simpan -->
+                    <div class="flex justify-center">
+                        <button type="submit" class="btn-wave w-full py-4 bg-primary-green text-white font-bold text-xl rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                            <div class="flex items-center justify-center space-x-2">
+                                <i data-lucide="save" class="w-6 h-6"></i>
+                                <span>Simpan</span>
+                            </div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Halaman Profil Baru -->
+    <section id="profile-page" class="page">
+        <div class="flex flex-col h-full">
+            <h1 class="text-2xl md:text-4xl font-bold text-gray-800 mb-6">Profil & Pengaturan</h1>
+
+            <!-- Kartu Profil Pengguna -->
+            <div class="bg-white rounded-xl shadow-sm p-6 mb-6 flex items-center space-x-4">
+                <div class="h-16 w-16 md:h-20 md:w-20 rounded-full bg-primary-green flex items-center justify-center text-white flex-shrink-0">
+                    <i data-lucide="user-circle" class="w-12 h-12 md:w-16 md:h-16"></i>
+                </div>
+                <div>
+                    <h2 class="font-bold text-lg md:text-xl text-gray-800">Pengguna Rotarizz</h2>
+                    <p class="text-sm text-gray-500">Bergabung sejak: 21 September 2025</p>
+                </div>
+            </div>
+
+            <!-- Kartu Perangkat Terhubung -->
+            <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                <h2 class="text-xl md:text-2xl font-semibold text-gray-800 mb-4">Perangkat Kesehatan</h2>
+                
+                <div id="device-status" class="flex items-center justify-between p-4 rounded-lg bg-gray-100">
+                    <div class="flex items-center space-x-3">
+                        <i data-lucide="watch" class="w-6 h-6 text-gray-500"></i>
+                        <span id="device-text" class="text-gray-700">Belum Terhubung</span>
+                    </div>
+                    <button onclick="toggleConnection()" class="btn-wave py-2 px-4 rounded-lg bg-primary-green text-white font-medium text-sm transition-colors duration-200">
+                        Hubungkan
+                    </button>
+                </div>
+            </div>
+
+            <!-- Kartu Pusat Bantuan & Kontak -->
+            <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                <h2 class="text-xl md:text-2xl font-semibold text-gray-800 mb-4">Pusat Bantuan</h2>
+                
+                <!-- Konten utama Pusat Bantuan -->
+                <div id="help-content" class="fade-in">
+                    <!-- Daftar FAQ yang dapat diperluas -->
+                    <div class="space-y-4">
+                        <div class="bg-soft-white rounded-lg p-4 cursor-pointer" onclick="toggleFaq('login-faq')">
+                            <div class="flex justify-between items-center">
+                                <span class="font-medium text-lg text-gray-800">Masalah Login & Akun</span>
+                                <i data-lucide="chevron-down" class="w-5 h-5 text-gray-500 transform transition-transform duration-300"></i>
+                            </div>
+                            <div id="login-faq" class="hidden mt-4 text-gray-600 leading-relaxed fade-in">
+                                <p class="mb-2"><strong>Bagaimana cara mengatur ulang kata sandi?</strong></p>
+                                <p>Klik 'Lupa Kata Sandi' di halaman login. Anda akan menerima email untuk mengatur ulang kata sandi baru.</p>
+                            </div>
+                        </div>
+                        <div class="bg-soft-white rounded-lg p-4 cursor-pointer" onclick="toggleFaq('scan-faq')">
+                            <div class="flex justify-between items-center">
+                                <span class="font-medium text-lg text-gray-800">AI Scan Kesehatan</span>
+                                <i data-lucide="chevron-down" class="w-5 h-5 text-gray-500 transform transition-transform duration-300"></i>
+                            </div>
+                            <div id="scan-faq" class="hidden mt-4 text-gray-600 leading-relaxed fade-in">
+                                <p class="mb-2"><strong>Seberapa akurat hasil scan?</strong></p>
+                                <p>AI Scan adalah alat bantu untuk memantau tren kesehatan. Hasilnya tidak menggantikan diagnosis medis profesional.</p>
+                            </div>
+                        </div>
+                        <div class="bg-soft-white rounded-lg p-4 cursor-pointer" onclick="toggleFaq('privacy-faq')">
+                            <div class="flex justify-between items-center">
+                                <span class="font-medium text-lg text-gray-800">Akun & Privasi</span>
+                                <i data-lucide="chevron-down" class="w-5 h-5 text-gray-500 transform transition-transform duration-300"></i>
+                            </div>
+                            <div id="privacy-faq" class="hidden mt-4 text-gray-600 leading-relaxed fade-in">
+                                <p class="mb-2"><strong>Apakah data saya aman?</strong></p>
+                                <p>Kami menggunakan enkripsi canggih untuk melindungi data kesehatan Anda. Silakan baca Kebijakan Privasi kami untuk detail lebih lanjut.</p>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <div class="flex justify-center mt-6">
+                        <button onclick="showContactForm()" class="btn-wave w-full py-3 px-6 bg-primary-green text-white font-medium rounded-lg hover:shadow-lg transition-all duration-300">
+                            Hubungi Kami
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Formulir Hubungi Kami (disembunyikan secara default) -->
+                <div id="contact-form-container" class="hidden fade-in">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl md:text-2xl font-bold text-gray-800">Kirim Pesan</h3>
+                        <button onclick="hideContactForm()" class="text-gray-500 hover:text-gray-700 transition-colors">
+                            <i data-lucide="x" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                    <form class="space-y-4">
+                        <div>
+                            <label for="contact-feedback" class="block text-gray-700 font-medium mb-1">Pesan</label>
+                            <textarea id="contact-feedback" rows="4" placeholder="Tuliskan keluhan atau saran Anda di sini..." class="w-full p-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-light-blue transition-all"></textarea>
+                        </div>
+                        <button type="submit" class="btn-wave w-full py-3 bg-primary-green text-white font-bold rounded-xl hover:shadow-xl transition-all duration-300">
+                            Kirim Feedback
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <!-- Tombol Logout -->
+            <button onclick="logout()" class="btn-wave w-full py-3 px-6 mt-6 bg-red-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                Keluar
+            </button>
+        </div>
+    </section>
+</main>
+
+<!-- Navigasi Bottom Bar untuk Mobile -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white shadow-lg p-3 md:hidden rounded-t-2xl z-50">
+    <div class="flex justify-around items-center h-full">
+        <button onclick="showPage('home')" class="nav-button active flex flex-col items-center flex-1">
+            <i data-lucide="home" class="nav-icon text-gray-500 w-6 h-6"></i>
+            <span class="nav-text text-xs text-gray-500 mt-1">Beranda</span>
+        </button>
+        <button onclick="showPage('scan')" class="nav-button flex flex-col items-center flex-1">
+            <i data-lucide="scan" class="nav-icon text-gray-500 w-6 h-6"></i>
+            <span class="nav-text text-xs text-gray-500 mt-1">AI Scan</span>
+        </button>
+        <button onclick="showPage('reminder')" class="nav-button flex flex-col items-center flex-1">
+            <i data-lucide="pill" class="nav-icon text-gray-500 w-6 h-6"></i>
+            <span class="nav-text text-xs text-gray-500 mt-1">Pengingat</span>
+        </button>
+        <button onclick="showPage('history')" class="nav-button flex flex-col items-center flex-1">
+            <i data-lucide="line-chart" class="nav-icon text-gray-500 w-6 h-6"></i>
+            <span class="nav-text text-xs text-gray-500 mt-1">Riwayat</span>
+        </button>
+        <button onclick="showPage('profile')" class="nav-button flex flex-col items-center flex-1">
+            <i data-lucide="user" class="nav-icon text-gray-500 w-6 h-6"></i>
+            <span class="nav-text text-xs text-gray-500 mt-1">Profil</span>
+        </button>
+    </div>
+</nav>
+
+<script>
+    // Inisialisasi Lucide Icons
+    lucide.createIcons();
+
+    // Fungsi untuk menampilkan halaman yang dipilih
+    function showPage(pageId) {
+        const pages = document.querySelectorAll('.page');
+        pages.forEach(page => {
+            page.classList.remove('active', 'fade-in');
+        });
+        const activePage = document.getElementById(pageId + '-page');
+        if (activePage) {
+            activePage.classList.add('active', 'fade-in');
+        }
+
+        // Update status tombol navigasi
+        const navButtons = document.querySelectorAll('.nav-button');
+        navButtons.forEach(button => {
+            button.classList.remove('active');
+        });
+        const currentButton = document.querySelector(`.nav-button[onclick="showPage('${pageId}')"]`);
+        if (currentButton) {
+            currentButton.classList.add('active');
+        }
+    }
+
+    // Fungsi untuk menampilkan atau menyembunyikan FAQ
+    function toggleFaq(faqId) {
+        const faqContent = document.getElementById(faqId);
+        const parentCard = faqContent.parentElement;
+        const chevronIcon = parentCard.querySelector('i[data-lucide="chevron-down"]');
+        
+        faqContent.classList.toggle('hidden');
+        if (chevronIcon) {
+            chevronIcon.classList.toggle('rotate-180');
+        }
+    }
+
+    // Fungsi untuk menandai pengingat sebagai selesai (hanya bisa dicentang, tidak bisa dibatalkan)
+    function toggleReminderCompletion(element) {
+        const isChecked = element.getAttribute('data-lucide') === 'check-circle';
+        
+        // Hanya izinkan mencentang, tidak membatalkan centang
+        if (!isChecked) {
+            element.setAttribute('data-lucide', 'check-circle');
+            element.classList.remove('text-gray-400');
+            element.classList.add('text-green-500');
+        }
+        // Re-render icons after changing the attribute
+        lucide.createIcons();
+    }
+
+    // Fungsi untuk mengelola status koneksi perangkat (tanpa mengubah state global)
+    function toggleConnection() {
+        const deviceText = document.getElementById('device-text');
+        const connectButton = document.querySelector('#device-status button');
+        
+        const isConnected = deviceText.textContent.includes('Terhubung');
+
+        if (isConnected) {
+            deviceText.textContent = 'Belum Terhubung';
+            connectButton.textContent = 'Hubungkan';
+            connectButton.classList.remove('bg-red-500');
+            connectButton.classList.add('bg-primary-green');
+        } else {
+            deviceText.textContent = 'Terhubung';
+            connectButton.textContent = 'Putuskan';
+            connectButton.classList.remove('bg-primary-green');
+            connectButton.classList.add('bg-red-500');
+        }
+    }
+    
+    // Fungsi untuk menampilkan formulir kontak
+    function showContactForm() {
+        document.getElementById('help-content').classList.add('hidden');
+        document.getElementById('contact-form-container').classList.remove('hidden');
+        lucide.createIcons();
+    }
+
+    // Fungsi untuk menyembunyikan formulir kontak
+    function hideContactForm() {
+        document.getElementById('contact-form-container').classList.add('hidden');
+        document.getElementById('help-content').classList.remove('hidden');
+        lucide.createIcons();
+    }
+
+    // Fungsi untuk logout (tanpa modal)
+    function logout() {
+      // Untuk simulasi, langsung arahkan ke halaman beranda
+      showPage('home');
+      console.log('User logged out.');
+    }
+
+    // Simulasi hasil scan
+    document.getElementById('scan-button').addEventListener('click', function() {
+        const scanResults = document.getElementById('scan-results');
+        const cameraPreview = document.getElementById('camera-preview');
+        const scanButton = document.getElementById('scan-button');
+
+        scanButton.innerHTML = `<span class="flex items-center space-x-2"><i data-lucide="loader-circle" class="w-6 h-6 animate-spin"></i><span>Memproses...</span></span>`;
+        scanButton.disabled = true;
+
+        setTimeout(() => {
+            scanButton.innerHTML = `<div class="flex items-center space-x-2"><i data-lucide="zap" class="w-6 h-6"></i><span>Mulai Scan</span></div>`;
+            scanButton.disabled = false;
+            
+            // Sembunyikan preview kamera dan tampilkan hasil
+            cameraPreview.style.display = 'none';
+            scanResults.classList.remove('hidden');
+            lucide.createIcons(); // Re-render icons setelah konten muncul
+        }, 2000); // Simulasi waktu proses
+    });
+
+    // Simulasi kamera
+    const video = document.getElementById('camera-preview');
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: true }).then(function(stream) {
+            video.srcObject = stream;
+            video.play();
+        }).catch(function(err) {
+            console.error("Kamera tidak dapat diakses: ", err);
+            video.style.display = 'none';
+            document.querySelector('#scan-page .relative').innerHTML = '<p class="text-gray-400 text-center p-4">Kamera tidak tersedia atau akses ditolak.</p>';
+        });
+    } else {
+        video.style.display = 'none';
+        document.querySelector('#scan-page .relative').innerHTML = '<p class="text-gray-400 text-center p-4">Fitur kamera tidak didukung oleh browser Anda.</p>';
+    }
+
+    // Fungsi untuk inisialisasi grafik Chart.js
+    function initCharts() {
+        const weeklyCtx = document.getElementById('weekly-chart').getContext('2d');
+        const historyCtx = document.getElementById('history-chart').getContext('2d');
+
+        const primaryBlue = '#60A5FA';
+        const primaryGreen = '#34D399';
+        const lightBlue = '#BFDBFE';
+        const mintGreen = '#D1FAE5';
+
+        // Data & konfigurasi untuk Grafik Mingguan
+        new Chart(weeklyCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
+                datasets: [{
+                    label: 'Skor Kesehatan',
+                    data: [80, 82, 85, 83, 84, 86, 88],
+                    backgroundColor: [
+                        mintGreen,
+                        lightBlue,
+                        mintGreen,
+                        lightBlue,
+                        mintGreen,
+                        lightBlue,
+                        mintGreen
+                    ],
+                    borderColor: [
+                        primaryGreen,
+                        primaryBlue,
+                        primaryGreen,
+                        primaryBlue,
+                        primaryGreen,
+                        primaryBlue,
+                        primaryGreen
+                    ],
+                    borderWidth: 1,
+                    borderRadius: 8,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                    tooltip: {
+                        enabled: false,
+                    },
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: {
+                            color: '#E5E7EB',
+                            drawBorder: false,
+                        },
+                        ticks: {
+                            color: '#9CA3AF',
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false,
+                            drawBorder: false,
+                        },
+                        ticks: {
+                            color: '#4B5563',
+                        }
+                    }
+                },
+                // Menampilkan nilai di atas batang
+                animation: {
+                    onComplete: function() {
+                        const chartInstance = this;
+                        const ctx = chartInstance.ctx;
+                        ctx.textAlign = 'center';
+                        ctx.fillStyle = '#4B5563';
+                        ctx.font = '12px Inter';
+                        chartInstance.data.datasets.forEach(function(dataset, i) {
+                            const meta = chartInstance.getDatasetMeta(i);
+                            meta.data.forEach(function(bar, index) {
+                                const data = dataset.data[index];
+                                ctx.fillText(data, bar.x, bar.y - 5);
+                            });
+                        });
+                    }
+                }
+            }
+        });
+
+        // Data & konfigurasi untuk Grafik Riwayat
+        new Chart(historyCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
+                datasets: [{
+                    label: 'Skor Kesehatan',
+                    data: [80, 78, 82, 75, 80, 85, 83],
+                    backgroundColor: [
+                        mintGreen,
+                        lightBlue,
+                        mintGreen,
+                        lightBlue,
+                        mintGreen,
+                        lightBlue,
+                        mintGreen
+                    ],
+                    borderColor: [
+                        primaryGreen,
+                        primaryBlue,
+                        primaryGreen,
+                        primaryBlue,
+                        primaryGreen,
+                        primaryBlue,
+                        primaryGreen
+                    ],
+                    borderWidth: 1,
+                    borderRadius: 8,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                    tooltip: {
+                        enabled: false,
+                    },
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: {
+                            color: '#E5E7EB',
+                            drawBorder: false,
+                        },
+                        ticks: {
+                            color: '#9CA3AF',
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false,
+                            drawBorder: false,
+                        },
+                        ticks: {
+                            color: '#4B5563',
+                        }
+                    }
+                },
+                // Menampilkan nilai di atas batang
+                animation: {
+                    onComplete: function() {
+                        const chartInstance = this;
+                        const ctx = chartInstance.ctx;
+                        ctx.textAlign = 'center';
+                        ctx.fillStyle = '#4B5563';
+                        ctx.font = '12px Inter';
+                        chartInstance.data.datasets.forEach(function(dataset, i) {
+                            const meta = chartInstance.getDatasetMeta(i);
+                            meta.data.forEach(function(bar, index) {
+                                const data = dataset.data[index];
+                                ctx.fillText(data, bar.x, bar.y - 5);
+                            });
+                        });
+                    }
+                }
+            }
+        });
+    }
+
+    // Panggil initCharts saat halaman dimuat
+    window.onload = function() {
+        initCharts();
+    };
+</script>
+</body>
+</html>
